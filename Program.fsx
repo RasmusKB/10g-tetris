@@ -63,42 +63,60 @@ let limage =
     arr[0,0] <- false
     arr[0,1] <- false
     arr
+
+let lmirrorimage =
+    let arr = Array2D.create 2 3 true
+    arr[0,2] <- false
+    arr[0,1] <- false
+    arr
+
 let zimage =
     let arr = Array2D.create 2 3 true
     arr[0,0] <- false
     arr[1,2] <- false
     arr
+
+
+let zmirrorimage =
+    let arr = Array2D.create 2 3 true
+    arr[1,0] <- false
+    arr[0,2] <- false
+    arr
+
 printfn"%A" squareimage
 printfn"%A" straightimage
 printfn"%A" timage
 printfn"%A" limage
+printfn"%A" lmirrorimage
 printfn"%A" zimage
+printfn"%A" zmirrorimage
 type position = int*int
 type tetromino (a: bool[,], c:Color, o:position) =
-// Make a string representation of this piece
-////    override this.ToString () =
+    override this.ToString () = sprintf"%A" this.image
     member this.clone() =
         new tetromino((this.image),(this.col),(this.offset))
     member this.rotateRight = 0
     member this.col = c
     member val image = a with get, set
     member this.offset = o
-    member this.width = 0
-    member this.height = 0
+    member this.width = a|> Array2D.length1
+    member this.height = a|> Array2D.length2
 
-type square (a: bool[,], c:Color, o:position) =
-    inherit tetromino (squareimage, Yellow, (0,0))
+type square (o:position) =
+    inherit tetromino (squareimage, Yellow, o)
 
-type straight (a: bool[,], c:Color, o:position) =
-    inherit tetromino (straightimage, Cyan, (0,0))
+type straight (o:position) =
+    inherit tetromino (straightimage, Cyan, o)
 
-type t (a: bool[,], c:Color, o:position) =
-    inherit tetromino (timage, Purple, (0,0))
-type l (a: bool[,], c:Color, o:position, m:bool) =
-    inherit tetromino (limage, Yellow, (0,0))
-type z (a: bool[,], c:Color, o:position, m:bool) =
-    inherit tetromino (zimage, Yellow, (0,0))
-printfn"%A"
+type t (o:position) =
+    inherit tetromino (timage, Purple,o)
+
+type l (o:position, m:bool) =
+    inherit tetromino ((if m then lmirrorimage else limage),(if m then Blue else Orange), o)
+
+type z (o:position, m:bool) =
+    inherit tetromino (zimage, Green, o)
+
 let b = board(10, 20)
 let C = draw 300 600 b
 show C "testing"
