@@ -76,26 +76,20 @@ let zimage =
     arr[1,2] <- false
     arr
 
-
 let zmirrorimage =
     let arr = Array2D.create 2 3 true
     arr[1,0] <- false
     arr[0,2] <- false
     arr
 
-printfn"%A" squareimage
-printfn"%A" straightimage
-printfn"%A" timage
-printfn"%A" limage
-printfn"%A" lmirrorimage
-printfn"%A" zimage
-printfn"%A" zmirrorimage
 type position = int*int
 type tetromino (a: bool[,], c:Color, o:position) =
     override this.ToString () = sprintf"%A" this.image
     member this.clone() =
         new tetromino((this.image),(this.col),(this.offset))
     member this.rotateRight = 0
+//        let flip = Array2D.create (a|> Array2D.length2) (a|> Array2D.length1) false
+//        this.image <- a |> Array2D.iteri (fun i j v -> flip[j,i] <- v)
     member this.col = c
     member val image = a with get, set
     member this.offset = o
@@ -115,8 +109,37 @@ type l (o:position, m:bool) =
     inherit tetromino ((if m then lmirrorimage else limage),(if m then Blue else Orange), o)
 
 type z (o:position, m:bool) =
-    inherit tetromino (zimage, Green, o)
+    inherit tetromino ((if m then zmirrorimage else zimage),(if m then Red else Green), o)
+
+let rot (a:bool[,]) =
+    let acc = Array2D.create (a|> Array2D.length2) (a|> Array2D.length1) false
+    let rotated = Array2D.create (a|> Array2D.length2) (a|> Array2D.length1) false
+    if a |> Array2D.length1 = 1 || a |> Array2D.length1 = 4 || (a |> Array2D.length1 = 2 && a |> Array2D.length2 = 2)  then
+        a |> Array2D.iteri (fun i j v -> rotated[j,i] <- v)
+    else
+        a |> Array2D.iteri (fun i j v -> acc[j,i] <- v)
+        acc |> Array2D.iteri (
+            fun i j v ->
+                if acc |> Array2D.length2 = 2 then
+                    if j = 0 then
+                        rotated[i,j+1] <- v
+                    else
+                        rotated[i,j-1] <- v
+                else
+                    if j = 0 then
+                        rotated[i,j+2] <- v
+                    elif j = 2 then
+                        rotated[i,j-2] <- v
+                    else
+                        rotated[i,j] <- v
+            )
+    rotated
 
 let b = board(10, 20)
 let C = draw 300 600 b
+printfn"%A" (zimage)
+printfn"%A" (rot zimage)
+printfn"%A" (rot zimage|> rot)
+printfn"%A" (rot zimage|> rot |> rot)
+printfn"%A" (rot zimage|> rot |> rot |> rot)
 show C "testing"
