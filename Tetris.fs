@@ -239,9 +239,7 @@ type board (w: int , h: int) =
                     ()
                 else
                     ()
-        printfn"%A" boardPieces
         let res = offsetArray |> List.except boardPieces
-        printfn"%A" res
         (res.Length <> 4)
     member this.performAction (act:Action) =
         let mutable is_down = false
