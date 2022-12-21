@@ -9,6 +9,12 @@ type Color =
     | Green
     | Purple
 
+type Action =
+    |MoveRight
+    |MoveLeft
+    |MoveDown
+    |RotateRight
+
 let fromColor (c: Color) : Canvas.color =
     match c with
         | Yellow -> fromRgb(255, 255, 0)
@@ -18,12 +24,6 @@ let fromColor (c: Color) : Canvas.color =
         | Red -> fromRgb(255,0,0)
         | Green -> fromRgb(0, 255, 0)
         | Purple -> fromRgb(128, 0, 128)
-
-type Action =
-    |MoveRight
-    |MoveLeft
-    |MoveDown
-    |RotateRight
 
 type position = int*int
 type tetromino (a: bool[,], c:Color, o:position) =
@@ -56,18 +56,15 @@ type tetromino (a: bool[,], c:Color, o:position) =
     default this.rotateRight() =
         let acc = Array2D.create (this.width()) (this.height()) false
         let rotated = Array2D.create (this.width()) (this.height()) false
-        if this.height() = 1 || this.height() = 4 || (this.height() = 2 && this.width() = 2)  then
-            this.image |> Array2D.iteri (fun i j v -> rotated[j,i] <- v)
-        else
-            this.image |> Array2D.iteri (fun i j v -> acc[j,i] <- v)
-            acc |> Array2D.iteri (
-                fun i j v ->
-                        if j = 0 then
-                            rotated[i,j+2] <- v
-                        elif j = 2 then
-                            rotated[i,j-2] <- v
-                        else
-                            rotated[i,j] <- v
+        this.image |> Array2D.iteri (fun i j v -> acc[j,i] <- v)
+        acc |> Array2D.iteri (
+            fun i j v ->
+                    if j = 0 then
+                        rotated[i,j+2] <- v
+                    elif j = 2 then
+                        rotated[i,j-2] <- v
+                    else
+                        rotated[i,j] <- v
             )
         (this.offset, rotated)
     member this.setPiece (pos: position) (img: bool[,]) =
@@ -80,7 +77,12 @@ let squareimage =
     Array2D.create 2 2 true
 
 let straightimage =
-    Array2D.create 1 4 true
+    let arr = Array2D.create 4 4 false
+    arr[1,0] <- true
+    arr[1,1] <- true
+    arr[1,2] <- true
+    arr[1,3] <- true
+    arr
 
 let timage =
     let arr = Array2D.create 3 3 true
@@ -129,10 +131,20 @@ let zmirrorimage =
 
 type square (o:position) =
     inherit tetromino (squareimage, Yellow, o)
+    override this.rotateRight() =
+        (this.offset, this.image)
 
 type straight (o:position) =
     inherit tetromino (straightimage, Cyan, o)
-//    override this.rotateRight() =
+        override this.rotateRight() =
+            let rotated = Array2D.create (this.width()) (this.height()) false
+            this.image |> Array2D.iteri (fun i j v ->
+                if (i - 3) >= 0 then
+                    rotated[j,(i-3)] <- v
+                else
+                    rotated[j,(-(i-3))] <- v
+            )
+            (this.offset, rotated)
 
 type t (o:position) =
     inherit tetromino (timage, Purple,o)
@@ -171,17 +183,25 @@ type board (w: int , h: int) =
     member this.newPiece() : tetromino option =
         let rnd = System.Random()
         let rnd1 = rnd.Next(7)
-        match rnd1 with
-        |0 -> new square(4,0) :> tetromino |> Some
-        |1 -> new straight(3,0) :> tetromino |> Some
-        |2 -> new l((3,0), false) :> tetromino |> Some
-        |3 -> new l((3,0), true) :> tetromino |> Some
-        |4 -> new t(3,0) :> tetromino |> Some
-        |5 -> new z((3,0), false) :> tetromino |> Some
-        |6 -> new z((3,0), true) :> tetromino |> Some
-        |_ -> None
+        let newPiece =
+            match rnd1 with
+            |0 -> new square(4,0) :> tetromino |> Some
+            |1 -> new straight(3,-1) :> tetromino |> Some
+            |2 -> new l((3,0), false) :> tetromino |> Some
+            |3 -> new l((3,0), true) :> tetromino |> Some
+            |4 -> new t(3,0) :> tetromino |> Some
+            |5 -> new z((3,0), false) :> tetromino |> Some
+            |6 -> new z((3,0), true) :> tetromino |> Some
+            |_ -> None
+        if newPiece.IsSome then
+            let piece = newPiece |> Option.get
+            if not (this.checkCollisionPiece piece.offset piece.image) then
+                newPiece
+            else None
+        else
+            None
 
-    member this.put (t: tetromino) : bool =
+    member this.put (t: tetromino) : unit =
         let mutable acc = []
         let pieceToPlace = (Array2D.create (t.height()) (t.width())(None))
         for i = 0 to (t.width()) - 1 do
@@ -201,9 +221,7 @@ type board (w: int , h: int) =
                         do _board.[(i+(fst(t.offset))), (j+(snd(t.offset)))] <- pieceToPlace.[j,i]
                     else
                         ()
-            true
-        else
-            false
+        ()
 
     member this.take() = activePiece
     member val activeTetromino = activePiece with get, set
@@ -221,6 +239,7 @@ type board (w: int , h: int) =
                 else
                     ()
         offsetArray |> List.map (fun (x,y) -> x < 0 || x > 9 || y > 19) |> List.exists (fun x -> x = true)
+
     member this.checkCollisionPiece (pos: position) (piece: bool[,]) : bool =
         let mutable offsetArray = []
         let x,y = pos
@@ -241,6 +260,7 @@ type board (w: int , h: int) =
                     ()
         let res = offsetArray |> List.except boardPieces
         (res.Length <> 4)
+
     member this.performAction (act:Action) =
         let mutable is_down = false
         match this.activeTetromino with
@@ -270,12 +290,8 @@ type board (w: int , h: int) =
             else
                 x.setPiece offset img
 
-
-
-
-
-
 type state = board
+
 
 let draw (w: int) (h: int) (s: state) =
     let C = create w h
