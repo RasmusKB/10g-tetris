@@ -1,5 +1,7 @@
 module tetris
 
+open Canvas
+
 type Color =
     | Yellow
     | Cyan
@@ -174,12 +176,9 @@ type board (w: int , h: int) =
             |5 -> new z((3,0), false) :> tetromino |> Some
             |6 -> new z((3,0), true) :> tetromino |> Some
             |_ -> None
-        if newPiece.IsSome then
-            let piece = newPiece |> Option.get
-            if not (this.checkCollisionPiece piece.offset piece.image) then
-                newPiece
-            else
-                None
+        let piece = newPiece |> Option.get
+        if not (this.checkCollisionPiece piece.offset piece.image) then
+            newPiece
         else
             None
 
@@ -336,3 +335,5 @@ let react (s: state) (k: Canvas.key) : state option =
             Some s
         |_ ->
             Some s
+let startState = (board(10,20))
+startState.activeTetromino <- startState.newPiece()
