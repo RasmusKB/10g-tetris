@@ -6,8 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Tetris.fsi" />
-    <Compile Include="Tetris.fs" />
+    <Compile Include="tetris.fsi" />
+    <Compile Include="tetris.fs" />
    </ItemGroup>
 
   <ItemGroup>
