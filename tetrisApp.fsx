@@ -2,7 +2,7 @@
 
 open Canvas
 
-#load "Tetris.fs"
+#load "tetris.fs"
 
 open tetris
 
