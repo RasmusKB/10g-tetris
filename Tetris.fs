@@ -41,8 +41,6 @@ type tetromino (a: bool[,], c:Color, o:position) =
         |> replacestring "]" ""
         |> replacestring "false" "_"
         |> replacestring "true" "#"
-    member this.clone() =
-        new tetromino((this.image),(this.col),(this.offset))
     member this.moveRight() =
         let x,y = this.offset
         ((x+1,y), this.image)
@@ -52,20 +50,14 @@ type tetromino (a: bool[,], c:Color, o:position) =
     member this.moveDown() =
         let x,y = this.offset
         ((x,y+1),this.image)
-    abstract member rotateRight: unit -> ((int*int)*bool[,])
-    default this.rotateRight() =
-        let acc = Array2D.create (this.width()) (this.height()) false
+    member this.rotateRight() : ((int*int)*bool[,]) =
         let rotated = Array2D.create (this.width()) (this.height()) false
-        this.image |> Array2D.iteri (fun i j v -> acc[j,i] <- v)
-        acc |> Array2D.iteri (
-            fun i j v ->
-                    if j = 0 then
-                        rotated[i,j+2] <- v
-                    elif j = 2 then
-                        rotated[i,j-2] <- v
-                    else
-                        rotated[i,j] <- v
-            )
+        this.image |> Array2D.iteri (fun i j v ->
+            if (i - (this.width()-1)) >= 0 then
+                rotated[j,(i-(this.width()-1))] <- v
+            else
+                rotated[j,(-(i-(this.width()-1)))] <- v
+        )
         (this.offset, rotated)
     member this.setPiece (pos: position) (img: bool[,]) =
         this.image <- img
@@ -131,20 +123,9 @@ let zmirrorimage =
 
 type square (o:position) =
     inherit tetromino (squareimage, Yellow, o)
-    override this.rotateRight() =
-        (this.offset, this.image)
 
 type straight (o:position) =
     inherit tetromino (straightimage, Cyan, o)
-        override this.rotateRight() =
-            let rotated = Array2D.create (this.width()) (this.height()) false
-            this.image |> Array2D.iteri (fun i j v ->
-                if (i - 3) >= 0 then
-                    rotated[j,(i-3)] <- v
-                else
-                    rotated[j,(-(i-3))] <- v
-            )
-            (this.offset, rotated)
 
 type t (o:position) =
     inherit tetromino (timage, Purple,o)
@@ -159,7 +140,7 @@ type z (o:position, m:bool) =
 type board (w: int , h: int) =
     let _board = Array2D.create w h None
     let mutable activePiece : tetromino option = None
-
+    let mutable _score : int = 0
     override this.ToString () =
         let replacestring (oldV:string) (newV:string) (image:string) =
             image.Replace(oldV, newV)
@@ -197,33 +178,32 @@ type board (w: int , h: int) =
             let piece = newPiece |> Option.get
             if not (this.checkCollisionPiece piece.offset piece.image) then
                 newPiece
-            else None
+            else
+                None
         else
             None
 
     member this.put (t: tetromino) : unit =
-        let mutable acc = []
         let pieceToPlace = (Array2D.create (t.height()) (t.width())(None))
         for i = 0 to (t.width()) - 1 do
             for j = 0 to (t.height() - 1) do
                 if this.board.[i,j] = None then
-                    acc <- acc@[0]
                     if t.image.[j,i] then
                         pieceToPlace[j,i] <- Some t.col
+                        ()
                     else
                         pieceToPlace[j,i] <- None
-                else
-                    acc <- acc@[1]
-        if not (acc|> List.contains 1) then
-            for i = 0 to (t.width()) - 1 do
-                for j = 0 to (t.height()) - 1 do
-                    if pieceToPlace.[j,i].IsSome then
-                        do _board.[(i+(fst(t.offset))), (j+(snd(t.offset)))] <- pieceToPlace.[j,i]
-                    else
                         ()
+                else
+                    ()
+        for i = 0 to (t.width()) - 1 do
+            for j = 0 to (t.height()) - 1 do
+                if pieceToPlace.[j,i].IsSome then
+                    do _board.[(i+(fst(t.offset))), (j+(snd(t.offset)))] <- pieceToPlace.[j,i]
+                else
+                    ()
         ()
 
-    member this.take() = activePiece
     member val activeTetromino = activePiece with get, set
     member this.width = w
     member this.height = h
@@ -290,9 +270,8 @@ type board (w: int , h: int) =
             else
                 x.setPiece offset img
 
+
 type state = board
-
-
 let draw (w: int) (h: int) (s: state) =
     let C = create w h
     s.board |> Array2D.iteri (
@@ -329,9 +308,15 @@ let draw (w: int) (h: int) (s: state) =
         do setLine C (black) (0,(h/20)*i) (w,(h/20)*i)
     C
 
+let mutable score = 1
 let react (s: state) (k: Canvas.key) : state option =
     if s.activeTetromino.IsNone then
-        s.activeTetromino <- s.newPiece()
+        let newPiece = s.newPiece()
+        if newPiece.IsSome then
+            s.activeTetromino <- newPiece
+            score <- score + 1
+        else
+            printfn"GAME OVER\nSCORE: %A" score
     else
         ()
     match getKey k with
@@ -351,6 +336,3 @@ let react (s: state) (k: Canvas.key) : state option =
             Some s
         |_ ->
             Some s
-let startState = (board(10,20))
-startState.activeTetromino <- startState.newPiece()
-runApp "Tetris" 300 600 draw react startState
